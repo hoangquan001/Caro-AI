@@ -7,7 +7,7 @@ np.set_printoptions(linewidth=200)
 # Duyệt 4 theo trục tung, hoành, chéo chính, chéo phụ
 directions = np.array([(0, 1), (1, 0), (1, 1), (-1, 1)])
 max_depth = 2
-maximum_childs = 6
+maximum_childs = 5
 
 # Bẳng điểm đánh giá vị trí đánh dấu khi xét mỗi dòng 5, giá trị =0 tương ứng với
 # điểm đã đánh, giá trị !=0 tương ứng với điểm đánh giá tùy thuộc vào từng vị trí
@@ -24,24 +24,24 @@ rating_score_table = np.array([
     [20, 0, 0, 20, 15],
     [15, 0, 20, 0, 15],
     # Line 3
-    [0, 0, 0, 100, 50],
-    [0, 0, 100, 0, 50],
+    [0, 0, 0, 200, 50],
+    [0, 0, 200, 0, 50],
     [0, 0, 50, 50, 0],
     [0, 50, 0, 50, 0],
-    [100, 0, 0, 0, 100],
-    [0, 100, 0, 0, 50],
+    [200, 0, 0, 0, 200],
+    [0, 200, 0, 0, 50],
 
     # Line 4
-    [500, 0, 0, 0, 0],
-    [0, 500, 0, 0, 0],
-    [0, 0, 500, 0, 0],
+    [1000, 0, 0, 0, 0],
+    [0, 1000, 0, 0, 0],
+    [0, 0, 1000, 0, 0],
 
 ])
 
 
 # hàm đánh giá điểm ứng trên bảng đanh xếp hạng điểm rating_score_table
 def getValue(line, pos_in_line, typeLine, blockHead, blockTail):
-    if(blockHead and blockTail):
+    if(blockHead or blockTail):
         return 0
     value = 0
     for case in rating_score_table:
@@ -55,12 +55,12 @@ def getValue(line, pos_in_line, typeLine, blockHead, blockTail):
             value = case[4-pos_in_line]
             break
 
-    if(blockHead or blockTail):
-        count = np.sum(line == typeLine)
-        if(count == 3):
-            value = value // 4
-        if(count == 2):
-            value = value//4
+    # if(blockHead or blockTail):
+    #     count = np.sum(line == typeLine)
+    #     if(count == 3):
+    #         value = value // 4
+    #     if(count == 2):
+    #         value = value//4
     return value
 
 
@@ -103,10 +103,13 @@ next_pos = (1, 1)
 def EvaluateBoard(BoardGame, player, type_eval=0):
     scoreboard = np.zeros((20, 20), dtype=int)
     # duyệt theo 4 hương [ tung, hoang, chéo chính, chéo phụ ]
-    for direct in directions:
-        # quét tất cả ô cò trên bàn cờ
-        for row in range(20):
-            for col in range(20):
+
+    # quét tất cả ô cò trên bàn cờ
+    for row in range(20):
+        for col in range(20):
+            values = np.zeros(4)
+
+            for idx, direct in enumerate(directions):
                 boardIdx = np.array([row, col])
                 # check cell has mark
                 if(BoardGame[row, col] != 0):
@@ -131,26 +134,21 @@ def EvaluateBoard(BoardGame, player, type_eval=0):
                                 line5, pos_in_line, type_line, blockHead, blockTail)
                             if(bestValue < value):
                                 bestValue = value
+
                                 numX = countX
                                 numO = countO
+                values[idx] = bestValue*player
+
                 if(type_eval == 0):
                     scoreboard[row, col] += bestValue
-                    # # Thế công
-                    # if (player == X) == (numX > 0):
-                    #     scoreboard[row, col] += bestValue*2
-                    #  # Thế thủ
-                    # else:
-                    #     scoreboard[row, col] += bestValue
-
                 elif(type_eval == 1):
                     if (numX > 0):
                         scoreboard[row, col] += bestValue
-                    if (numO > 0):
+                    else:
                         scoreboard[row, col] -= bestValue
-                    if(player == X):
-                        scoreboard[row, col] += bestValue/2
-                    if (player == O):
-                        scoreboard[row, col] -= bestValue/2
+            sumX = np.sum(values >= 15)
+            if(sumX >= 2):
+                scoreboard[row, col] *= 2
     return scoreboard
 
 
@@ -191,8 +189,9 @@ def minimax(Board, depth: int, player):
     if(depth == 0):
         valuedBoard = EvaluateBoard(Board, player, 1)
         minvalue, maxvalue = np.min(valuedBoard), np.max(valuedBoard)
-        value = 0 if minvalue + maxvalue < 0 else maxvalue
-        return value
+        return minvalue + maxvalue
+        # return minvalue if abs(minvalue) > maxvalue else maxvalue
+        # return value
     # đánh giá bàn cờ và chọn ra n ô có vị trí tốt nhất cho player sẽ được
     best_childs = findNextMove(Board, player, maximum_childs)
     if(player == X):
@@ -200,29 +199,28 @@ def minimax(Board, depth: int, player):
         for move_pos in best_childs:
             r, c = move_pos
             if(checkWinner(Board, move_pos, player)[0]):
-                # if depth == max_depth:
-                next_pos = move_pos
+                if depth == max_depth:
+                    next_pos = move_pos
                 Mx = 5000.0
                 break
 
             Board[r, c] = X
             value = minimax(Board, depth-1, O)
             Board[r, c] = 0
+
             if(Mx < value):
                 if depth == max_depth:
                     next_pos = move_pos
                 Mx = value
+
         return Mx
     else:
         Mn = np.inf
         for move_pos in best_childs:
             r, c = move_pos
             if checkWinner(Board, move_pos, player)[0]:
-
-                # if depth == max_depth:
-                next_pos = move_pos
+                print(123)
                 Mn = - 5000.0
-
                 break
             Board[r, c] = O
             value = minimax(Board, depth-1,  X)
